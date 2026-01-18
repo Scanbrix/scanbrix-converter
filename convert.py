@@ -7,7 +7,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 importer_dir = os.path.join(current_dir, "sketchup_importer")
 slapi_dir = os.path.join(importer_dir, "slapi")
 
-# Add folders to path
 for d in [current_dir, importer_dir, slapi_dir]:
     if d not in sys.path:
         sys.path.insert(0, d)
@@ -16,7 +15,6 @@ print("--- BLENDER ENGINE STARTING ---")
 
 # 2. THE MANUAL BRAIN OVERRIDE
 try:
-    # We try to import the slapi folder as the module 'sketchup'
     import slapi
     sys.modules['sketchup'] = slapi
     print("🧠 Manual Brain Override: slapi mapped to sketchup.")
@@ -33,20 +31,28 @@ try:
 
     print(f"🎬 STARTING MANUAL IMPORT: {input_path}")
     
-    # Import the Importer class directly from the file
     from sketchup_importer import SceneImporter
     
-    # Create the importer and bypass the UI preference check
     importer = SceneImporter()
-    importer.prefs = type('obj', (object,), {
-        'use_yup': True, 
-        'import_materials': True, 
-        'import_textures': True, 
-        'layers_as_collections': True
-    })
     
-    # Load the geometry
-    importer.set_filename(input_path).load(bpy.context)
+    # --- CRITICAL: PROVIDE ALL MISSING OPTIONS ---
+    # We create a fake preferences object that has every key the plugin expects
+    settings = {
+        'use_yup': True,
+        'import_materials': True,
+        'import_textures': True,
+        'layers_as_collections': True,
+        'reuse_material': True,
+        'import_hidden': False,
+        'import_texts': False,
+        'import_dimensions': False
+    }
+    
+    # We attach these settings to both the prefs and the internal options dictionary
+    importer.prefs = type('obj', (object,), settings)
+    
+    # We call the internal load command and pass the settings as keywords
+    importer.set_filename(input_path).load(bpy.context, **settings)
     print("✅ Geometry loaded successfully.")
 
     print(f"📦 EXPORTING GLB: {output_path}")
