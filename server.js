@@ -2,7 +2,7 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-app.use(express.json()); // Essential to read the Supabase JSON trigger
+app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -38,16 +38,26 @@ app.post('/convert', async (req, res) => {
 
     if (downloadError) throw new Error(`Download failed: ${downloadError.message}`);
     const fileBuffer = new Uint8Array(await fileBlob.arrayBuffer());
+    console.log(`📦 File downloaded. Size: ${fileBuffer.length} bytes`);
 
-    // 2. Run Native Conversion
+    // 2. Run Native Conversion with Hinting
     const fileList = new assimpReady.FileList();
-    fileList.AddFile('input.skp', fileBuffer);
+    
+    // OPTION 2: Hint the parser by ensuring the extension is explicitly .skp
+    const hintName = fileName.toLowerCase().endsWith('.skp') ? fileName : `${fileName}.skp`;
+    fileList.AddFile(hintName, fileBuffer);
+    
+    console.log(`⚙️  Starting Assimp conversion (Target: GLB)...`);
     const result = assimpReady.ConvertFileList(fileList, 'glb');
     
     if (!result.IsSuccess()) {
+      // Capture the actual engine error if available
+      const engineError = result.GetErrors ? result.GetErrors() : 'No detailed engine error provided';
+      console.error(`❌ Engine Failure: ${engineError}`);
+      
       fileList.delete();
       result.delete();
-      throw new Error('Assimp conversion failed');
+      throw new Error(`Assimp conversion failed: ${engineError}`);
     }
 
     // 3. Upload GLB back to Supabase
@@ -55,16 +65,22 @@ app.post('/convert', async (req, res) => {
     const glbBuffer = Buffer.from(glbFile.GetContent());
     const glbFileName = fileName.replace(/\.[^/.]+$/, "") + ".glb";
 
+    console.log(`☁️  Uploading converted file: ${glbFileName}`);
     const { data, error: uploadError } = await supabase.storage
       .from('converted-files')
-      .upload(glbFileName, glbBuffer, { upsert: true });
+      .upload(glbFileName, glbBuffer, { 
+        upsert: true,
+        contentType: 'model/gltf-binary'
+      });
 
     if (uploadError) throw uploadError;
 
+    // Memory Cleanup
     fileList.delete();
     result.delete();
     
-    console.log(`✅ Success! Created: ${glbFileName}`);
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`✅ Success! Created: ${glbFileName} in ${duration}s`);
     res.json({ success: true, path: data.path });
     
   } catch (error) {
