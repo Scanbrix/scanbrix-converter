@@ -35,26 +35,29 @@ try:
     
     importer = SceneImporter()
     
-    # --- THE "KITCHEN SINK" SETTINGS ---
-    # These match the internal keys of the SketchUp Importer addon
+    # --- COMPLETE PARAMETER SET ---
+    # These match the exact keys the plugin pulls from the 'options' dictionary
     settings = {
         'use_yup': True,
         'import_materials': True,
         'import_textures': True,
         'layers_as_collections': True,
         'reuse_material': True,
-        'reuse_existing_groups': True,  # This was the missing key!
+        'reuse_existing_groups': True,
+        'max_instance': 1000,        # This was the missing key!
         'import_hidden': False,
         'import_texts': False,
         'import_dimensions': False,
         'import_cameras': False,
-        'set_instancing': True
+        'set_instancing': True,
+        'pages_as_scenes': False,
+        'extract_color': True
     }
     
-    # Attach to the fake prefs object
+    # Attach to the fake prefs object to satisfy internal class checks
     importer.prefs = type('obj', (object,), settings)
     
-    # Pass the full dictionary to the load function
+    # Pass the full dictionary to the load function to satisfy the KeyError checks
     importer.set_filename(input_path).load(bpy.context, **settings)
     print("✅ Geometry loaded successfully into Blender scene.")
 
