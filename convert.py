@@ -1,33 +1,30 @@
 import bpy
 import sys
-import os
+import time
 
-# Enable the importer plugin
-bpy.ops.preferences.addon_enable(module='SketchUp_Importer')
+# Force enable the specific RedHaloStudio plugin
+addon_name = "Sketchup_Importer"
+bpy.ops.preferences.addon_enable(module=addon_name)
 
-# Get input and output paths from the command line
+# Allow 1 second for the plugin to register its operators
+time.sleep(1)
+
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]
 input_path = argv[0]
 output_path = argv[1]
 
-# Clear default objects (cube, camera, light)
+# Clear scene
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
-# Import the SketchUp file
 try:
+    print(f"🎬 Importing: {input_path}")
+    # Explicitly call the SKP import operator
     bpy.ops.import_scene.skp(filepath=input_path)
     
-    # Optional: Join all objects to simplify the GLB for Scanbrix
-    bpy.ops.object.select_all(action='SELECT')
-    
-    # Export as GLB
-    bpy.ops.export_scene.gltf(
-        filepath=output_path, 
-        export_format='GLB',
-        export_apply=True
-    )
-    print("✅ Conversion Successful")
+    print(f"📦 Exporting: {output_path}")
+    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+    print("✅ Done!")
 except Exception as e:
-    print(f"❌ Blender Conversion Error: {str(e)}")
+    print(f"❌ Blender Error: {str(e)}")
     sys.exit(1)
