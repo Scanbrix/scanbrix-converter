@@ -1,39 +1,41 @@
 import bpy
 import sys
 import os
+import addon_utils
 
-# 1. MANUALLY INJECT THE FOLDER
-# We point Python directly to the folder in your GitHub
+# 1. SETUP PATHS
 current_dir = os.path.dirname(os.path.abspath(__file__))
+# Ensure /app is in the system path
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 print("--- BLENDER ENGINE STARTING ---")
 
+# 2. FORCE REFRESH AND ENABLE
+# We point Blender specifically to the folder name
 try:
-    # We manually "wake up" the importer folder
-    import sketchup_importer
-    sketchup_importer.register()
-    print("✅ SUCCESS: sketchup_importer manually registered.")
+    bpy.utils.refresh_script_paths()
+    # This avoids the 'import' loop by using Blender's internal manager
+    addon_utils.enable('sketchup_importer', default_set=True)
+    print("✅ SUCCESS: sketchup_importer enabled via addon_utils.")
 except Exception as e:
-    print(f"❌ ERROR: Manual registration failed: {e}")
+    print(f"❌ ERROR: Enable failed: {e}")
     sys.exit(1)
 
-# 2. VERIFY THE 'SKP' COMMAND IS READY
+# 3. VERIFY OPERATOR
 if not hasattr(bpy.ops.import_scene, 'skp'):
-    print("❌ CRITICAL: The SketchUp importer command is still missing.")
-    # This debug line will show us what Blender DID find if it fails
-    print("Found commands:", [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")])
+    print("❌ CRITICAL: 'import_scene.skp' operator not found.")
+    # Show us what it DID find so we can debug
+    import_ops = [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")]
+    print(f"Available import operators: {import_ops}")
     sys.exit(1)
 
-# 3. EXECUTE CONVERSION
+# 4. CONVERSION EXECUTION
 try:
-    # Separate the system arguments from Blender arguments
     argv = sys.argv[sys.argv.index("--") + 1:]
     input_path = argv[0]
     output_path = argv[1]
 
-    # Wipe the default Blender cube/light
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
