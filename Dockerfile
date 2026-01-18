@@ -11,12 +11,12 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the SketchUp Importer - Fixed Path
+# Install the SketchUp Importer - Corrected Path based on logs
 RUN mkdir -p /root/.config/blender/2.83/scripts/addons/Sketchup_Importer && \
     wget --no-check-certificate https://github.com/RedHaloStudio/Sketchup_Importer/archive/refs/tags/0.22.1.zip -O /tmp/plugin.zip && \
     unzip /tmp/plugin.zip -d /tmp/plugin_extracted && \
-    # We move everything from the extracted version folder into our target addon folder
-    cp -r /tmp/plugin_extracted/Sketchup_Importer-0.22.1/. /root/.config/blender/2.83/scripts/addons/Sketchup_Importer/ && \
+    # The logs show files are in Sketchup_Importer-0.22.1/, so we copy everything from there
+    cp -v -r /tmp/plugin_extracted/Sketchup_Importer-0.22.1/. /root/.config/blender/2.83/scripts/addons/Sketchup_Importer/ && \
     rm -rf /tmp/plugin.zip /tmp/plugin_extracted
 
 WORKDIR /app
