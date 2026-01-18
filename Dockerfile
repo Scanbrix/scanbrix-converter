@@ -1,6 +1,5 @@
 FROM node:18-bullseye
 
-# Install Blender and system dependencies
 RUN apt-get update && apt-get install -y \
     blender \
     libglu1-mesa \
@@ -8,11 +7,12 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-# 1. Create the SYSTEM addon directory (this is where Blender 2.83 on Debian lives)
+# Create the target directory
 RUN mkdir -p /usr/share/blender/scripts/addons/sketchup_importer
 
-# 2. Copy the folder from your repo into the SYSTEM folder
-COPY sketchup_importer/ /usr/share/blender/scripts/addons/sketchup_importer/
+# Copy EVERYTHING from your local folder into the Blender path
+# We use . to mean "everything inside the current directory's sketchup_importer folder"
+COPY sketchup_importer/. /usr/share/blender/scripts/addons/sketchup_importer/
 
 WORKDIR /app
 COPY package*.json ./
