@@ -8,12 +8,11 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create the addon directory
-RUN mkdir -p /root/.config/blender/2.83/scripts/addons
+# 1. Create the SYSTEM addon directory (this is where Blender 2.83 on Debian lives)
+RUN mkdir -p /usr/share/blender/scripts/addons/sketchup_importer
 
-# COPY the folder from your GitHub repo into the Blender addons path
-# Use lowercase 'sketchup_importer' to match your screenshot
-COPY sketchup_importer/ /root/.config/blender/2.83/scripts/addons/sketchup_importer/
+# 2. Copy the folder from your repo into the SYSTEM folder
+COPY sketchup_importer/ /usr/share/blender/scripts/addons/sketchup_importer/
 
 WORKDIR /app
 COPY package*.json ./
