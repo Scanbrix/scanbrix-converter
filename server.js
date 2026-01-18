@@ -25,7 +25,7 @@ let assimpReady = null;\
 async function initializeAssimp() \{\
   console.log('\uc0\u55357 \u56615  Initializing Assimp.js...');\
   try \{\
-    const assimpFactory = require('assimpjs');\
+    const assimpFactory = require('assimp');
     const assimpModule = assimpFactory();\
     assimpReady = await assimpModule;\
     \
