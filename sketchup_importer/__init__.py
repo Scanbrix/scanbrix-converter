@@ -40,7 +40,14 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, see http://www.gnu.org/licenses
 """
 
-from .slapi import sketchup
+try:
+    # Try importing slapi directly as the brain
+    from . import slapi as sketchup
+except ImportError:
+    try:
+        from .slapi import sketchup
+    except ImportError:
+        import sketchup
 from .SKPutil import *
 
 bl_info = {
