@@ -35,25 +35,28 @@ try:
     
     importer = SceneImporter()
     
-    # --- CRITICAL: PROVIDE ALL MISSING OPTIONS ---
-    # We create a fake preferences object that has every key the plugin expects
+    # --- THE "KITCHEN SINK" SETTINGS ---
+    # These match the internal keys of the SketchUp Importer addon
     settings = {
         'use_yup': True,
         'import_materials': True,
         'import_textures': True,
         'layers_as_collections': True,
         'reuse_material': True,
+        'reuse_existing_groups': True,  # This was the missing key!
         'import_hidden': False,
         'import_texts': False,
-        'import_dimensions': False
+        'import_dimensions': False,
+        'import_cameras': False,
+        'set_instancing': True
     }
     
-    # We attach these settings to both the prefs and the internal options dictionary
+    # Attach to the fake prefs object
     importer.prefs = type('obj', (object,), settings)
     
-    # We call the internal load command and pass the settings as keywords
+    # Pass the full dictionary to the load function
     importer.set_filename(input_path).load(bpy.context, **settings)
-    print("✅ Geometry loaded successfully.")
+    print("✅ Geometry loaded successfully into Blender scene.")
 
     print(f"📦 EXPORTING GLB: {output_path}")
     bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
