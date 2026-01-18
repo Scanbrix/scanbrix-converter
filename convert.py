@@ -10,32 +10,31 @@ if current_dir not in sys.path:
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. FORCE MANUAL IMPORT AND REGISTRATION
+# 2. THE FORCE LOAD
+# We use a try/except that ignores the circular import but still registers the ops
 try:
-    # We import the actual code directly
-    import sketchup_importer
-    
-    # We force the register function to run
-    sketchup_importer.register()
-    print("✅ SUCCESS: sketchup_importer manually registered.")
-    
-    # We also trigger the addon_utils enable just to be safe
+    bpy.utils.refresh_script_paths()
+    # Force unregister first to clear the "partial initialization"
+    try:
+        addon_utils.disable('sketchup_importer')
+    except:
+        pass
+        
     addon_utils.enable('sketchup_importer', default_set=True)
-    
+    print("✅ Addon manager enabled the module.")
 except Exception as e:
     print(f"⚠️ Registration Info: {e}")
 
-# 3. CRITICAL: LIST ALL OPERATORS (Debug list)
-# This will show us exactly what the importer added to Blender
-print("Checking for SKP operator...")
-if not hasattr(bpy.ops.import_scene, 'skp'):
-    print("❌ SKP Operator still not found in 'import_scene'.")
-    # Let's check if it registered under a different name
-    all_ops = dir(bpy.ops.import_scene)
-    print(f"Available import operators: {[op for op in all_ops if not op.startswith('__')]}")
-    sys.exit(1)
+# 3. VERIFY AND LIST ALL 'IMPORT_SCENE' OPERATORS
+# This is crucial. If 'skp' isn't there, we'll see what IS there.
+ops = [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")]
+print(f"Verified Operators in import_scene: {ops}")
 
-print("🎯 SKP Operator Verified!")
+if 'skp' not in ops:
+    print("❌ SKP Operator is MISSING from the internal list.")
+    sys.exit(1)
+else:
+    print("🎯 SKP Operator FOUND and ACTIVE!")
 
 # 4. CONVERSION EXECUTION
 try:
@@ -43,11 +42,12 @@ try:
     input_path = argv[0]
     output_path = argv[1]
 
-    # Factory reset to ensure clean scene
+    # Reset Blender to factory settings (empty scene)
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
-    bpy.ops.import_scene.skp(filepath=input_path)
+    # Force Blender to call the operator directly
+    getattr(bpy.ops.import_scene, 'skp')(filepath=input_path)
 
     print(f"📦 EXPORTING GLB: {output_path}")
     bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
