@@ -41,13 +41,12 @@ along with this program; if not, see http://www.gnu.org/licenses
 """
 
 try:
-    # Try importing slapi directly as the brain
-    from . import slapi as sketchup
+    from .slapi import sketchup
+    # Force the Model attribute if it's nested
+    if hasattr(sketchup, 'sketchup'):
+        sketchup = sketchup.sketchup
 except ImportError:
-    try:
-        from .slapi import sketchup
-    except ImportError:
-        import sketchup
+    import sketchup
 from .SKPutil import *
 
 bl_info = {
