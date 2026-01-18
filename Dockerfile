@@ -7,17 +7,20 @@ RUN apt-get update && apt-get install -y \
     libxi6 \
     libxrender1 \
     python3-dev \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Cython (required for some Linux 3D importers to compile slapi)
+RUN pip3 install Cython
 
 WORKDIR /app
 
-# Copy the entire repository (including sketchup_importer folder) into /app
+# Copy the entire repository
 COPY . .
 
-# Install Node.js dependencies for the server
+# Install Node.js dependencies
 RUN npm install
 
 EXPOSE 10000
 
-# Start the Node.js server
 CMD ["npm", "start"]
