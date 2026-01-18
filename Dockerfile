@@ -1,6 +1,5 @@
 FROM node:18-bullseye
 
-# Install Blender and Linux system dependencies
 RUN apt-get update && apt-get install -y \
     blender \
     libglu1-mesa \
@@ -10,17 +9,15 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install numpy (Critical for GLTF export) and Cython
 RUN pip3 install numpy Cython
 
 WORKDIR /app
-
-# Copy the entire repository
 COPY . .
 
-# Install Node.js dependencies
+# --- CRITICAL: LINK THE C-LIBRARIES ---
+# This tells Linux to look inside your slapi folder for the SketchUp engine
+ENV LD_LIBRARY_PATH=/app/sketchup_importer/slapi:$LD_LIBRARY_PATH
+
 RUN npm install
-
 EXPOSE 10000
-
 CMD ["npm", "start"]
