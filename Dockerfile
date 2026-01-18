@@ -11,12 +11,13 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the RedHaloStudio SketchUp Importer for Blender 2.83
-# We use the v0.22.1 release which specifically supports Blender 2.80+
+# Install the SketchUp Importer
+# We unzip to a temp folder, find the actual addon folder, and move it
 RUN mkdir -p /root/.config/blender/2.83/scripts/addons && \
-    wget --no-check-certificate https://github.com/RedHaloStudio/Sketchup_Importer/releases/download/0.22.1/Sketchup_Importer.zip -O /tmp/skp_importer.zip && \
-    unzip /tmp/skp_importer.zip -d /root/.config/blender/2.83/scripts/addons && \
-    rm -rf /tmp/skp_importer.zip
+    wget --no-check-certificate https://github.com/RedHaloStudio/Sketchup_Importer/archive/refs/tags/0.22.1.zip -O /tmp/plugin.zip && \
+    unzip /tmp/plugin.zip -d /tmp/plugin_extracted && \
+    mv /tmp/plugin_extracted/Sketchup_Importer-0.22.1/Sketchup_Importer /root/.config/blender/2.83/scripts/addons/ && \
+    rm -rf /tmp/plugin.zip /tmp/plugin_extracted
 
 WORKDIR /app
 
