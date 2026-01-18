@@ -5,30 +5,37 @@ import addon_utils
 
 # 1. SETUP PATHS
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# Ensure /app is in the system path
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. FORCE REFRESH AND ENABLE
-# We point Blender specifically to the folder name
+# 2. FORCE MANUAL IMPORT AND REGISTRATION
 try:
-    bpy.utils.refresh_script_paths()
-    # This avoids the 'import' loop by using Blender's internal manager
+    # We import the actual code directly
+    import sketchup_importer
+    
+    # We force the register function to run
+    sketchup_importer.register()
+    print("✅ SUCCESS: sketchup_importer manually registered.")
+    
+    # We also trigger the addon_utils enable just to be safe
     addon_utils.enable('sketchup_importer', default_set=True)
-    print("✅ SUCCESS: sketchup_importer enabled via addon_utils.")
+    
 except Exception as e:
-    print(f"❌ ERROR: Enable failed: {e}")
+    print(f"⚠️ Registration Info: {e}")
+
+# 3. CRITICAL: LIST ALL OPERATORS (Debug list)
+# This will show us exactly what the importer added to Blender
+print("Checking for SKP operator...")
+if not hasattr(bpy.ops.import_scene, 'skp'):
+    print("❌ SKP Operator still not found in 'import_scene'.")
+    # Let's check if it registered under a different name
+    all_ops = dir(bpy.ops.import_scene)
+    print(f"Available import operators: {[op for op in all_ops if not op.startswith('__')]}")
     sys.exit(1)
 
-# 3. VERIFY OPERATOR
-if not hasattr(bpy.ops.import_scene, 'skp'):
-    print("❌ CRITICAL: 'import_scene.skp' operator not found.")
-    # Show us what it DID find so we can debug
-    import_ops = [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")]
-    print(f"Available import operators: {import_ops}")
-    sys.exit(1)
+print("🎯 SKP Operator Verified!")
 
 # 4. CONVERSION EXECUTION
 try:
@@ -36,6 +43,7 @@ try:
     input_path = argv[0]
     output_path = argv[1]
 
+    # Factory reset to ensure clean scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
