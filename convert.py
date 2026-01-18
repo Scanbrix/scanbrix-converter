@@ -1,38 +1,32 @@
 import bpy
 import sys
-import time
+import os
+import addon_utils
 
-# Give the system a moment
-time.sleep(1)
-
-# Try to enable
-print("Attempting to enable sketchup_importer...")
-bpy.ops.preferences.addon_enable(module='sketchup_importer')
-
-# VERIFY if it actually loaded the operators
-if not hasattr(bpy.ops.import_scene, 'skp'):
-    print("❌ CRITICAL: sketchup_importer operators NOT found in bpy.ops.import_scene")
-    # List what IS there for debugging
-    print("Available operators:", [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")])
-    sys.exit(1)
+# 1. Manually check if the file exists where we put it
+plugin_path = "/usr/share/blender/scripts/addons/sketchup_importer/__init__.py"
+print(f"Checking for plugin at: {plugin_path}")
+if os.path.exists(plugin_path):
+    print("📁 Plugin file detected on disk!")
 else:
-    print("✅ sketchup_importer operators verified and ready!")
+    print("❌ Plugin file NOT found on disk. Check Docker COPY command.")
 
-# Arguments
-argv = sys.argv
-argv = argv[argv.index("--") + 1:]
-input_path = argv[0]
-output_path = argv[1]
-
-bpy.ops.wm.read_factory_settings(use_empty=True)
-
+# 2. Refresh and Enable
+bpy.utils.refresh_script_paths()
 try:
-    print(f"🎬 Importing: {input_path}")
-    bpy.ops.import_scene.skp(filepath=input_path)
-    
-    print(f"📦 Exporting: {output_path}")
-    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
-    print("✅ Conversion Successful!")
+    addon_utils.enable('sketchup_importer', default_set=True)
+    print("Attempted to enable 'sketchup_importer'")
 except Exception as e:
-    print(f"❌ Blender Error: {str(e)}")
+    print(f"Enable Error: {e}")
+
+# 3. The Final Operator Check
+if not hasattr(bpy.ops.import_scene, 'skp'):
+    print("❌ SKP Operator missing. Available:", [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")])
     sys.exit(1)
+
+print("✅ SUCCESS: Importer is active.")
+
+# --- Rest of conversion logic ---
+argv = sys.argv[sys.argv.index("--") + 1:]
+bpy.ops.import_scene.skp(filepath=argv[0])
+bpy.ops.export_scene.gltf(filepath=argv[1], export_format='GLB')
