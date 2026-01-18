@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: scanbrix-converter-1
+    runtime: docker # This forces Render to use your Dockerfile
+    plan: starter # Blender needs at least the Starter plan for RAM
+    envVars:
+      - key: SUPABASE_URL
+        fromService:
+          name: scanbrix-converter-1
+          type: env
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        fromService:
+          name: scanbrix-converter-1
+          type: env
