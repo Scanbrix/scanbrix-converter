@@ -5,49 +5,46 @@ import types
 import importlib
 
 # 1. SETUP PATHS
-base_dir = "/app"
-importer_dir = os.path.join(base_dir, "sketchup_importer")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+importer_dir = os.path.join(current_dir, "sketchup_importer")
 slapi_dir = os.path.join(importer_dir, "slapi")
 model_subdir = os.path.join(slapi_dir, "model")
 
-for d in [base_dir, importer_dir, slapi_dir, model_subdir]:
+for d in [current_dir, importer_dir, slapi_dir, model_subdir]:
     if d not in sys.path:
         sys.path.insert(0, d)
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. AUTO-DISCOVERY BRIDGE
-try:
-    actual_model_class = None
-    
-    # Scan the model folder for the actual file containing the Model class
-    for file in os.listdir(model_subdir):
-        if file.endswith(".py") and file != "__init__.py":
-            module_name = f"slapi.model.{file[:-3]}"
-            print(f"🔍 Checking module: {module_name}")
+# 2. SURGICAL MODEL DISCOVERY
+# We will manually search the model directory for the class definition
+def get_actual_model():
+    print(f"🔍 Scanning {model_subdir} for Model class...")
+    for filename in os.listdir(model_subdir):
+        if filename.endswith(".py") and filename != "__init__.py":
+            module_name = filename[:-3]
             try:
-                temp_mod = importlib.import_module(module_name)
-                if hasattr(temp_mod, 'Model'):
-                    actual_model_class = temp_mod.Model
-                    print(f"🎯 Found Model class in {file}")
-                    break
+                # We import the file directly
+                spec = importlib.util.spec_from_file_location(module_name, os.path.join(model_subdir, filename))
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                if hasattr(mod, 'Model'):
+                    print(f"🎯 Found 'Model' class in: {filename}")
+                    return mod.Model
             except Exception as e:
-                print(f"   Skipping {file}: {e}")
+                print(f"   Could not read {filename}: {e}")
+    return None
 
-    if actual_model_class:
-        # Create the 'sketchup' module the importer expects
-        skp_bridge = types.ModuleType("sketchup")
-        skp_bridge.Model = actual_model_class
-        sys.modules['sketchup'] = skp_bridge
-        print("✅ Bridge Successful: sketchup.Model is mapped and ready.")
-    else:
-        # Final fallback: just try to import slapi directly
-        import slapi
-        sys.modules['sketchup'] = slapi
-        print("⚠️ Warning: Auto-discovery failed. Falling back to direct slapi import.")
+ActualModelClass = get_actual_model()
 
-except Exception as e:
-    print(f"❌ Bridge System Failed: {e}")
+if ActualModelClass:
+    # Build the 'sketchup' module the importer expects
+    skp_bridge = types.ModuleType("sketchup")
+    skp_bridge.Model = ActualModelClass
+    sys.modules['sketchup'] = skp_bridge
+    print("✅ Brain Injected: sketchup.Model is mapped.")
+else:
+    print("❌ CRITICAL: 'Model' class not found in any .py file in slapi/model/")
 
 # 3. CONVERSION EXECUTION
 try:
@@ -80,7 +77,7 @@ try:
         bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
         print("🏁 SUCCESS")
     else:
-        print("❌ ERROR: Scene is empty. The Model class didn't load any geometry.")
+        print("❌ ERROR: Scene is empty. The Model class exists but didn't create geometry.")
         sys.exit(1)
 
 except Exception as e:
