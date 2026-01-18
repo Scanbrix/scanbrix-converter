@@ -2,7 +2,6 @@
 FROM node:18-bullseye
 
 # Install Blender and system dependencies
-# Added wget as it's more reliable for GitHub downloads
 RUN apt-get update && apt-get install -y \
     blender \
     libglu1-mesa \
@@ -12,12 +11,12 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the SketchUp Importer Plugin using wget
+# Install the RedHaloStudio SketchUp Importer for Blender 2.83
+# We use the v0.22.1 release which specifically supports Blender 2.80+
 RUN mkdir -p /root/.config/blender/2.83/scripts/addons && \
-    wget --no-check-certificate https://github.com/Space-Design/SketchUp_Importer/archive/refs/heads/master.zip -O /tmp/skp_importer.zip && \
-    unzip /tmp/skp_importer.zip -d /tmp && \
-    mv /tmp/SketchUp_Importer-master/SketchUp_Importer /root/.config/blender/2.83/scripts/addons/ && \
-    rm -rf /tmp/skp_importer.zip /tmp/SketchUp_Importer-master
+    wget --no-check-certificate https://github.com/RedHaloStudio/Sketchup_Importer/releases/download/0.22.1/Sketchup_Importer.zip -O /tmp/skp_importer.zip && \
+    unzip /tmp/skp_importer.zip -d /root/.config/blender/2.83/scripts/addons && \
+    rm -rf /tmp/skp_importer.zip
 
 WORKDIR /app
 
