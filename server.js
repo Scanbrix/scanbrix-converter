@@ -42,7 +42,7 @@ app.post('/convert', async (req, res) => {
     // 2. Run Native Conversion
     const fileList = new assimpReady.FileList();
     fileList.AddFile(fileName, fileBuffer);
-    const result = assimpReady.ConvertFileList(fileList, 'glb2');
+    const result = assimpReady.ConvertFileList(fileList, 'glb');
     
     if (!result.IsSuccess()) {
       fileList.delete();
