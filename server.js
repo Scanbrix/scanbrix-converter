@@ -1,12 +1,9 @@
 const express = require('express');
-const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }
-});
+// Enable JSON parsing to read the fileName and bucketId from Supabase
+app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -19,88 +16,68 @@ async function initializeAssimp() {
   console.log('🚀 Initializing Assimp.js...');
   try {
     const assimpFactory = require('assimpjs');
-    // Version 0.0.10 initialization pattern
     assimpReady = await assimpFactory(); 
-    
     console.log('✅ Assimp.js initialized successfully');
-    
-    if (typeof assimpReady.FileList !== 'function') {
-      throw new Error('FileList is not available!');
-    }
-    console.log('✅ FileList and ConvertFileList verified');
-    
   } catch (error) {
     console.error('❌ Failed to initialize Assimp.js:', error);
     throw error;
   }
 }
 
-app.post('/convert', upload.single('file'), async (req, res) => {
+app.post('/convert', async (req, res) => {
+  const { fileName, bucketId } = req.body;
   const startTime = Date.now();
   
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    if (!fileName || !bucketId) {
+      throw new Error('Missing fileName or bucketId in request body');
     }
 
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`📂 Converting ${req.file.originalname}`);
-    console.log(`   File size: ${(req.file.size / 1024).toFixed(2)} KB`);
+    console.log(`📂 Fetching ${fileName} from ${bucketId}...`);
     
-    if (!assimpReady) {
-      throw new Error('Assimp.js not initialized');
-    }
+    // 1. Download the raw file from Supabase Storage
+    const { data: fileBlob, error: downloadError } = await supabase.storage
+      .from(bucketId)
+      .download(fileName);
 
-    console.log(`🏗️   Creating FileList...`);
+    if (downloadError) throw new Error(`Download failed: ${downloadError.message}`);
+    const fileBuffer = new Uint8Array(await fileBlob.arrayBuffer());
+
+    if (!assimpReady) throw new Error('Assimp.js not initialized');
+
+    // 2. Perform Native 3D Conversion
     const fileList = new assimpReady.FileList();
+    fileList.AddFile(fileName, fileBuffer);
     
-    console.log(`📝  Adding file...`);
-    fileList.AddFile(req.file.originalname, new Uint8Array(req.file.buffer));
-    
-    console.log(`⚙️   Converting to GLB...`);
-    const conversionStart = Date.now();
     const result = assimpReady.ConvertFileList(fileList, 'glb2');
-    const conversionTime = ((Date.now() - conversionStart) / 1000).toFixed(2);
-    
-    console.log(`✨  Conversion completed in ${conversionTime}s`);
     
     if (!result.IsSuccess()) {
       if (fileList.delete) fileList.delete();
       if (result.delete) result.delete();
-      throw new Error('Conversion failed');
+      throw new Error('Conversion failed - unsupported or corrupt file');
     }
     
+    // 3. Upload the resulting GLB back to Supabase
     const glbFile = result.FileList().GetFile(0);
     const glbBuffer = Buffer.from(glbFile.GetContent());
-    const glbFileName = req.file.originalname.replace(/\.(skp|liar)$/i, '.glb');
-    
-    console.log(`☁️   Uploading to Supabase...`);
-    const { data, error } = await supabase.storage
+    const glbFileName = fileName.replace(/\.[^/.]+$/, "") + ".glb";
+
+    console.log(`☁️   Uploading finished GLB: ${glbFileName}`);
+    const { data, error: uploadError } = await supabase.storage
       .from('converted-files')
-      .upload(glbFileName, glbBuffer, {
-        contentType: 'model/gltf-binary',
-        upsert: true
-      });
-    
-    if (error) {
-      if (fileList.delete) fileList.delete();
-      if (result.delete) result.delete();
-      throw error;
-    }
-    
-    if (fileList.delete) fileList.delete();
-    if (result.delete) result.delete();
+      .upload(glbFileName, glbBuffer, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    // Cleanup memory
+    fileList.delete();
+    result.delete();
     
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`✅  Complete! Total: ${totalTime}s`);
-    console.log(`${'='.repeat(60)}\n`);
+    console.log(`✅  Complete! Total Time: ${totalTime}s`);
     
-    res.json({ 
-      success: true, 
-      glbPath: data.path,
-      conversionTime: parseFloat(conversionTime),
-      totalTime: parseFloat(totalTime)
-    });
+    res.json({ success: true, path: data.path, totalTime: parseFloat(totalTime) });
     
   } catch (error) {
     console.error(`❌  Error: ${error.message}`);
@@ -114,16 +91,8 @@ app.get('/health', (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 
-initializeAssimp()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n${'='.repeat(60)}`);
-      console.log(`🚀  Scanbrix Conversion Service ONLINE`);
-      console.log(`   Port: ${PORT}`);
-      console.log(`${'='.repeat(60)}\n`);
-    });
-  })
-  .catch((error) => {
-    console.error('❌  Failed to start:', error);
-    process.exit(1);
+initializeAssimp().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀  Scanbrix Conversion Service ONLINE on Port ${PORT}`);
   });
+});
