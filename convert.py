@@ -10,7 +10,14 @@ if current_dir not in sys.path:
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. ENABLE ADDON
+# 2. SYSTEM HEALTH CHECK
+try:
+    import numpy
+    print(f"✅ Numpy verified: v{numpy.__version__}")
+except ImportError:
+    print("❌ CRITICAL: Numpy missing. GLTF export will fail.")
+
+# 3. ENABLE ADDON
 addon_name = "sketchup_importer"
 try:
     bpy.utils.refresh_script_paths()
@@ -19,24 +26,19 @@ try:
 except Exception as e:
     print(f"⚠️ Registration Info: {e}")
 
-# 3. CONVERSION EXECUTION
+# 4. CONVERSION
 try:
     argv = sys.argv[sys.argv.index("--") + 1:]
-    input_path = argv[0]
-    output_path = argv[1]
-
-    # Reset Blender scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
-    print(f"🎬 IMPORTING SKP: {input_path}")
-    # This call will now work because line 172 in the plugin is fixed!
-    bpy.ops.import_scene.skp(filepath=input_path)
+    print(f"🎬 IMPORTING: {argv[0]}")
+    bpy.ops.import_scene.skp(filepath=argv[0])
 
-    print(f"📦 EXPORTING GLB: {output_path}")
-    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+    print(f"📦 EXPORTING: {argv[1]}")
+    bpy.ops.export_scene.gltf(filepath=argv[1], export_format='GLB')
     
     print("🏁 CONVERSION FINISHED SUCCESSFULLY")
 
 except Exception as e:
-    print(f"❌ CONVERSION FAILED: {str(e)}")
+    print(f"❌ FAILED: {str(e)}")
     sys.exit(1)
