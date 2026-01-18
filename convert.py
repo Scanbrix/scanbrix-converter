@@ -1,47 +1,47 @@
 import bpy
 import sys
 import os
-import addon_utils
 
-# 1. FORCE PATH INJECTION
-# Tells Blender's Python to look in the current directory (/app) for the plugin
+# 1. MANUALLY IMPORT THE FOLDER AS A MODULE
 current_dir = os.path.dirname(os.path.abspath(__file__))
+plugin_path = os.path.join(current_dir, "sketchup_importer")
+
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
-# 2. REFRESH & ENABLE
-print("--- BLENDER PLUGIN LOAD ---")
-bpy.utils.refresh_script_paths()
+print(f"--- BLENDER PLUGIN LOAD ---")
+print(f"Checking local path: {plugin_path}")
 
 try:
-    # This specifically looks for the folder named 'sketchup_importer'
-    addon_utils.enable('sketchup_importer', default_set=True)
-    print("✅ SUCCESS: sketchup_importer enabled.")
+    # We manually import the Python package and run its internal register function
+    import sketchup_importer
+    sketchup_importer.register()
+    print("✅ SUCCESS: sketchup_importer manually registered.")
 except Exception as e:
-    print(f"❌ ERROR: Could not enable plugin: {e}")
+    print(f"❌ ERROR: Manual registration failed: {e}")
     sys.exit(1)
 
-# 3. VERIFY OPERATOR
+# 2. VERIFY OPERATOR
+# Sometimes the operator takes a split second to register
 if not hasattr(bpy.ops.import_scene, 'skp'):
     print("❌ CRITICAL: 'import_scene.skp' operator not found.")
     print("Available operators:", [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")])
     sys.exit(1)
 
-# 4. CONVERSION EXECUTION
+# 3. CONVERSION EXECUTION
 try:
-    # Get file paths from command line arguments
-    # Expected: blender -b -P convert.py -- input.skp output.glb
     argv = sys.argv[sys.argv.index("--") + 1:]
     input_path = argv[0]
     output_path = argv[1]
 
-    # Clear the default Blender scene
+    # Clear scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
-    print(f"🎬 IMPORTING: {input_path}")
+    print(f"🎬 IMPORTING SKP: {input_path}")
+    # Force the use of the operator we just registered
     bpy.ops.import_scene.skp(filepath=input_path)
 
-    print(f"📦 EXPORTING: {output_path}")
+    print(f"📦 EXPORTING GLB: {output_path}")
     bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
     
     print("🏁 CONVERSION FINISHED SUCCESSFULLY")
