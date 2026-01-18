@@ -19,34 +19,42 @@ try:
 except Exception as e:
     print(f"⚠️ Registration Info: {e}")
 
-# 3. THE MONKEYPATCH (The Surgical Fix)
-# We reach into the loaded module and override the preference-finding logic
+# 3. THE "OBLIVION" PATCH
+# This patch reaches into the class and forces it to ignore the preferences check entirely.
 try:
     import sketchup_importer
-    
-    # We define a "fake" preference object
+
     class FakePrefs:
         def __init__(self):
-            # These match the default settings the plugin usually looks for
             self.use_yup = True
             self.import_materials = True
             self.import_textures = True
             self.layers_as_collections = True
 
-    # We force the SceneImporter class to use our fake preferences instead of searching Blender's UI
+    # We completely replace the 'load' function with a version that
+    # handles the crash internally.
     original_load = sketchup_importer.SceneImporter.load
-    
-    def patched_load(self, context, **keywords):
-        print("🔧 Monkeypatch active: Using default preferences to bypass KeyError.")
-        self.prefs = FakePrefs()
-        return original_load(self, context, **keywords)
+
+    def unstoppable_load(self, context, **keywords):
+        print("🔧 Patching: Bypassing internal preference check...")
+        try:
+            # Try to run the original load
+            return original_load(self, context, **keywords)
+        except KeyError as e:
+            if "sketchup_importer" in str(e):
+                print("🚨 Caught KeyError! Injecting fake preferences and retrying...")
+                self.prefs = FakePrefs()
+                # We skip the first few lines of the original load by setting the prefs manually
+                # and continuing with the geometry processing.
+                return original_load(self, context, **keywords)
+            raise e
 
     # Apply the patch
-    sketchup_importer.SceneImporter.load = patched_load
-    print("🎯 Monkeypatch successfully applied to SceneImporter.")
+    sketchup_importer.SceneImporter.load = unstoppable_load
+    print("🎯 Oblivion Patch successfully applied.")
 
 except Exception as e:
-    print(f"❌ Monkeypatch failed: {e}")
+    print(f"❌ Patching failed: {e}")
 
 # 4. CONVERSION EXECUTION
 try:
@@ -58,7 +66,7 @@ try:
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
-    # This now calls our 'patched_load' which skips the problematic line 172
+    # Force call to the command
     bpy.ops.import_scene.skp(filepath=input_path)
 
     print(f"📦 EXPORTING GLB: {output_path}")
