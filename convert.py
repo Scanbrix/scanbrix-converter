@@ -3,37 +3,49 @@ import sys
 import os
 import addon_utils
 
-# 1. Get the current directory (/app)
+# 1. FORCE PATH INJECTION
+# Tells Blender's Python to look in the current directory (/app) for the plugin
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# 2. Add /app to the paths Blender looks for scripts
-# This is the "Force" method
-scripts_path = os.path.join(current_dir, "sketchup_importer")
-
-if os.path.exists(scripts_path):
-    print(f"📁 Local Plugin Folder Detected at: {scripts_path}")
-    # We add the parent directory to sys.path so it's importable
+if current_dir not in sys.path:
     sys.path.append(current_dir)
-else:
-    print(f"❌ Plugin Folder NOT found at {scripts_path}")
 
-# 3. Use the internal load function
-try:
-    # We import it as a standard module first to force registration
-    import sketchup_importer
-    sketchup_importer.register()
-    print("🚀 Manual Registration Successful")
-except Exception as e:
-    print(f"⚠️ Manual Registration Error (usually ignorable): {e}")
+# 2. REFRESH & ENABLE
+print("--- BLENDER PLUGIN LOAD ---")
+bpy.utils.refresh_script_paths()
 
-# 4. Standard Enable
 try:
+    # This specifically looks for the folder named 'sketchup_importer'
     addon_utils.enable('sketchup_importer', default_set=True)
+    print("✅ SUCCESS: sketchup_importer enabled.")
 except Exception as e:
-    print(f"Enable Error: {e}")
-
-# 5. Final Check
-if not hasattr(bpy.ops.import_scene, 'skp'):
-    print("❌ Operator still missing.")
+    print(f"❌ ERROR: Could not enable plugin: {e}")
     sys.exit(1)
 
-# ... Rest of the code ...
+# 3. VERIFY OPERATOR
+if not hasattr(bpy.ops.import_scene, 'skp'):
+    print("❌ CRITICAL: 'import_scene.skp' operator not found.")
+    print("Available operators:", [op for op in dir(bpy.ops.import_scene) if not op.startswith("__")])
+    sys.exit(1)
+
+# 4. CONVERSION EXECUTION
+try:
+    # Get file paths from command line arguments
+    # Expected: blender -b -P convert.py -- input.skp output.glb
+    argv = sys.argv[sys.argv.index("--") + 1:]
+    input_path = argv[0]
+    output_path = argv[1]
+
+    # Clear the default Blender scene
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+
+    print(f"🎬 IMPORTING: {input_path}")
+    bpy.ops.import_scene.skp(filepath=input_path)
+
+    print(f"📦 EXPORTING: {output_path}")
+    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+    
+    print("🏁 CONVERSION FINISHED SUCCESSFULLY")
+
+except Exception as e:
+    print(f"❌ CONVERSION FAILED: {str(e)}")
+    sys.exit(1)
