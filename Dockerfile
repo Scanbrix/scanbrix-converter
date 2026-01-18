@@ -10,12 +10,12 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Cython to help Python read the 3D geometry files
-RUN pip3 install Cython
+# Install numpy (Critical for GLTF export) and Cython
+RUN pip3 install numpy Cython
 
 WORKDIR /app
 
-# Copy the entire repository into /app
+# Copy the entire repository
 COPY . .
 
 # Install Node.js dependencies
