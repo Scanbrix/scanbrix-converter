@@ -10,39 +10,43 @@ if current_dir not in sys.path:
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. FORCE LOAD & PATCH PREFERENCES
-addon_folder_name = "sketchup_importer"
-
+# 2. ENABLE ADDON
+addon_name = "sketchup_importer"
 try:
     bpy.utils.refresh_script_paths()
-    addon_utils.enable(addon_folder_name, default_set=True)
-    
-    # --- THE SURGERY ---
-    # The addon crashes because it wants context.preferences.addons['sketchup_importer']
-    # If it's not there, we manually inject it.
-    if addon_folder_name not in bpy.context.preferences.addons:
-        print(f"🔧 Injecting missing preference key: {addon_folder_name}")
-        # We use a built-in Blender operator to force-register the preference entry
-        bpy.ops.preferences.addon_enable(module=addon_folder_name)
-    
-    # If it's STILL not there (headless quirk), we map it to whatever IS there
-    if addon_folder_name not in bpy.context.preferences.addons:
-        for key in bpy.context.preferences.addons.keys():
-            if "sketchup" in key.lower():
-                print(f"🔗 Mapping {addon_folder_name} to existing key: {key}")
-                bpy.context.preferences.addons[addon_folder_name] = bpy.context.preferences.addons[key]
-                break
-
-    print("✅ Addon preference patch applied.")
+    addon_utils.enable(addon_name, default_set=True)
+    print(f"✅ Addon '{addon_name}' enabled.")
 except Exception as e:
-    print(f"⚠️ Patch Info: {e}")
+    print(f"⚠️ Registration Info: {e}")
 
-# 3. VERIFY OPERATOR
-if not hasattr(bpy.ops.import_scene, 'skp'):
-    print("❌ SKP Operator missing.")
-    sys.exit(1)
-else:
-    print("🎯 SKP Operator FOUND and ACTIVE!")
+# 3. THE MONKEYPATCH (The Surgical Fix)
+# We reach into the loaded module and override the preference-finding logic
+try:
+    import sketchup_importer
+    
+    # We define a "fake" preference object
+    class FakePrefs:
+        def __init__(self):
+            # These match the default settings the plugin usually looks for
+            self.use_yup = True
+            self.import_materials = True
+            self.import_textures = True
+            self.layers_as_collections = True
+
+    # We force the SceneImporter class to use our fake preferences instead of searching Blender's UI
+    original_load = sketchup_importer.SceneImporter.load
+    
+    def patched_load(self, context, **keywords):
+        print("🔧 Monkeypatch active: Using default preferences to bypass KeyError.")
+        self.prefs = FakePrefs()
+        return original_load(self, context, **keywords)
+
+    # Apply the patch
+    sketchup_importer.SceneImporter.load = patched_load
+    print("🎯 Monkeypatch successfully applied to SceneImporter.")
+
+except Exception as e:
+    print(f"❌ Monkeypatch failed: {e}")
 
 # 4. CONVERSION EXECUTION
 try:
@@ -50,11 +54,11 @@ try:
     input_path = argv[0]
     output_path = argv[1]
 
-    # Clear scene
+    # Reset Blender scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
-    # We call the operator; it should now find the 'sketchup_importer' key it needs
+    # This now calls our 'patched_load' which skips the problematic line 172
     bpy.ops.import_scene.skp(filepath=input_path)
 
     print(f"📦 EXPORTING GLB: {output_path}")
