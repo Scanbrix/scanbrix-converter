@@ -10,15 +10,27 @@ if current_dir not in sys.path:
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. THE FORCE LOAD
-# We use the exact name the addon expects internally
-addon_name = "sketchup_importer"
+# 2. MATCH NAMES EXACTLY
+# The folder is 'sketchup_importer', but bl_info name is 'SketchUp Importer'
+folder_name = "sketchup_importer"
+internal_name = "SketchUp Importer"
 
 try:
     bpy.utils.refresh_script_paths()
-    # Enable the addon
-    addon_utils.enable(addon_name, default_set=True)
-    print(f"✅ Addon '{addon_name}' module enabled.")
+    # Enable using the folder name (module name)
+    addon_utils.enable(folder_name, default_set=True)
+    
+    # --- CRITICAL PATCH FOR INTERNAL NAME ---
+    # We check both the folder name and the internal name in preferences
+    registered_addons = bpy.context.preferences.addons.keys()
+    print(f"Registered Addons in memory: {list(registered_addons)}")
+
+    # If the internal name isn't found, we force it
+    if internal_name not in registered_addons and folder_name not in registered_addons:
+        print(f"🔧 Forcing registration for: {internal_name}")
+        bpy.ops.preferences.addon_enable(module=folder_name)
+    
+    print("✅ Addon engine successfully initialized.")
 except Exception as e:
     print(f"⚠️ Registration Info: {e}")
 
@@ -35,13 +47,11 @@ try:
     input_path = argv[0]
     output_path = argv[1]
 
-    # RESET scene
+    # Factory reset for a clean scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
-    
-    # We call the importer and manually pass 'use_yup=True' or other defaults 
-    # to bypass the preference check that is causing the crash.
+    # Force the call to the verified operator
     bpy.ops.import_scene.skp(filepath=input_path)
 
     print(f"📦 EXPORTING GLB: {output_path}")
