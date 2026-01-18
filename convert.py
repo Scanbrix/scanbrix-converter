@@ -19,44 +19,7 @@ try:
 except Exception as e:
     print(f"⚠️ Registration Info: {e}")
 
-# 3. THE "OBLIVION" PATCH
-# This patch reaches into the class and forces it to ignore the preferences check entirely.
-try:
-    import sketchup_importer
-
-    class FakePrefs:
-        def __init__(self):
-            self.use_yup = True
-            self.import_materials = True
-            self.import_textures = True
-            self.layers_as_collections = True
-
-    # We completely replace the 'load' function with a version that
-    # handles the crash internally.
-    original_load = sketchup_importer.SceneImporter.load
-
-    def unstoppable_load(self, context, **keywords):
-        print("🔧 Patching: Bypassing internal preference check...")
-        try:
-            # Try to run the original load
-            return original_load(self, context, **keywords)
-        except KeyError as e:
-            if "sketchup_importer" in str(e):
-                print("🚨 Caught KeyError! Injecting fake preferences and retrying...")
-                self.prefs = FakePrefs()
-                # We skip the first few lines of the original load by setting the prefs manually
-                # and continuing with the geometry processing.
-                return original_load(self, context, **keywords)
-            raise e
-
-    # Apply the patch
-    sketchup_importer.SceneImporter.load = unstoppable_load
-    print("🎯 Oblivion Patch successfully applied.")
-
-except Exception as e:
-    print(f"❌ Patching failed: {e}")
-
-# 4. CONVERSION EXECUTION
+# 3. CONVERSION EXECUTION
 try:
     argv = sys.argv[sys.argv.index("--") + 1:]
     input_path = argv[0]
@@ -66,7 +29,7 @@ try:
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
-    # Force call to the command
+    # This call will now work because line 172 in the plugin is fixed!
     bpy.ops.import_scene.skp(filepath=input_path)
 
     print(f"📦 EXPORTING GLB: {output_path}")
