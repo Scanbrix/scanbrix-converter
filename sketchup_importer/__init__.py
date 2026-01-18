@@ -41,12 +41,9 @@ along with this program; if not, see http://www.gnu.org/licenses
 """
 
 try:
-    from .slapi import sketchup
-    # Force the Model attribute if it's nested
-    if hasattr(sketchup, 'sketchup'):
-        sketchup = sketchup.sketchup
-except ImportError:
     import sketchup
+except ImportError:
+    from .slapi import sketchup
 from .SKPutil import *
 
 bl_info = {
