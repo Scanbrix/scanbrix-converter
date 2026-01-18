@@ -17,7 +17,10 @@ const supabase = createClient(
 // 3. Your Conversion Route
 app.post('/convert', async (req, res) => {
   const { fileName, bucketId } = req.body;
-  const tempInput = path.join(__dirname, fileName);
+  
+  // FIX: Sanitize filename by replacing spaces/special chars with underscores
+  const safeFileName = fileName.replace(/[^a-z0-9.]/gi, '_');
+  const tempInput = path.join(__dirname, safeFileName);
   const tempOutput = tempInput.replace(/\.[^/.]+$/, "") + ".glb";
 
   try {
@@ -33,16 +36,27 @@ app.post('/convert', async (req, res) => {
     fs.writeFileSync(tempInput, Buffer.from(await fileBlob.arrayBuffer()));
 
     // Trigger Headless Blender
-    console.log(`⚙️  Blender starting conversion for ${fileName}...`);
+    console.log(`⚙️  Blender starting conversion for ${safeFileName}...`);
+    // Added double quotes around paths to handle any remaining edge cases
     const cmd = `blender --background --python convert.py -- "${tempInput}" "${tempOutput}"`;
     
     exec(cmd, async (error, stdout, stderr) => {
+      // Log Blender's internal output for debugging
+      console.log('Blender Output:', stdout);
+
       if (error) {
-        console.error(`❌ Blender Error: ${stderr || stdout}`);
+        console.error(`❌ Blender Process Error: ${stderr || stdout}`);
         return res.status(500).json({ success: false, error: stderr || stdout });
       }
 
+      // Check if the GLB file actually exists before trying to read it
+      if (!fs.existsSync(tempOutput)) {
+        console.error(`❌ Conversion failed: ${tempOutput} not found.`);
+        return res.status(500).json({ success: false, error: "Blender exited but GLB was not created." });
+      }
+
       // Upload converted GLB to Supabase
+      console.log(`⬆️  Uploading ${path.basename(tempOutput)} to Supabase...`);
       const glbBuffer = fs.readFileSync(tempOutput);
       const glbName = path.basename(tempOutput);
 
