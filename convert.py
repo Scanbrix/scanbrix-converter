@@ -2,7 +2,7 @@ import bpy
 import sys
 import os
 
-# 1. PATH ALIGNMENT
+# 1. SETUP PATHS
 current_dir = os.path.dirname(os.path.abspath(__file__))
 importer_dir = os.path.join(current_dir, "sketchup_importer")
 slapi_dir = os.path.join(importer_dir, "slapi")
@@ -13,30 +13,20 @@ for d in [current_dir, importer_dir, slapi_dir]:
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. THE MANUAL BRAIN OVERRIDE
-try:
-    import slapi
-    sys.modules['sketchup'] = slapi
-    print("🧠 Manual Brain Override: slapi mapped to sketchup.")
-except Exception as e:
-    print(f"⚠️ Brain Override Note: {e}")
-
-# 3. EXECUTE CONVERSION
+# 2. CONVERSION EXECUTION
 try:
     argv = sys.argv[sys.argv.index("--") + 1:]
-    input_path = argv[0]
-    output_path = argv[1]
+    # FORCE ABSOLUTE PATHS
+    input_path = os.path.abspath(argv[0])
+    output_path = os.path.abspath(argv[1])
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
-    print(f"🎬 STARTING MANUAL IMPORT: {input_path}")
+    print(f"🎬 IMPORTING SKP: {input_path}")
     
     from sketchup_importer import SceneImporter
-    
     importer = SceneImporter()
     
-    # --- COMPLETE PARAMETER SET ---
-    # These match the exact keys the plugin pulls from the 'options' dictionary
     settings = {
         'use_yup': True,
         'import_materials': True,
@@ -44,7 +34,7 @@ try:
         'layers_as_collections': True,
         'reuse_material': True,
         'reuse_existing_groups': True,
-        'max_instance': 1000,        # This was the missing key!
+        'max_instance': 1000,
         'import_hidden': False,
         'import_texts': False,
         'import_dimensions': False,
@@ -54,20 +44,23 @@ try:
         'extract_color': True
     }
     
-    # Attach to the fake prefs object to satisfy internal class checks
     importer.prefs = type('obj', (object,), settings)
     
-    # Pass the full dictionary to the load function to satisfy the KeyError checks
+    # Run the load
     importer.set_filename(input_path).load(bpy.context, **settings)
-    print("✅ Geometry loaded successfully into Blender scene.")
-
-    print(f"📦 EXPORTING GLB: {output_path}")
-    bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
     
-    print("🏁 CONVERSION FINISHED SUCCESSFULLY")
+    # --- DEBUG: CHECK FOR DATA ---
+    obj_count = len(bpy.data.objects)
+    print(f"📊 Scene Scan: Found {obj_count} objects in Blender memory.")
+    
+    if obj_count == 0:
+        print("❌ CRITICAL: The importer ran but produced NO 3D DATA.")
+    else:
+        print(f"📦 EXPORTING GLB: {output_path}")
+        bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
+    
+    print("🏁 PROCESS FINISHED")
 
 except Exception as e:
-    print(f"❌ MANUAL CONVERSION FAILED: {str(e)}")
-    import traceback
-    traceback.print_exc()
+    print(f"❌ FAILED: {str(e)}")
     sys.exit(1)
