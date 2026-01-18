@@ -1,20 +1,23 @@
 # Use a Node.js base image
 FROM node:18-bullseye
 
-# Install Blender, Git, and system dependencies
+# Install Blender and system dependencies
+# Added wget as it's more reliable for GitHub downloads
 RUN apt-get update && apt-get install -y \
     blender \
     libglu1-mesa \
     libxi6 \
     libxrender1 \
-    git \
+    wget \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the SketchUp Importer Plugin using Git Clone
+# Install the SketchUp Importer Plugin using wget
 RUN mkdir -p /root/.config/blender/2.83/scripts/addons && \
-    git clone https://github.com/Space-Design/SketchUp_Importer.git /tmp/skp_repo && \
-    mv /tmp/skp_repo/SketchUp_Importer /root/.config/blender/2.83/scripts/addons/ && \
-    rm -rf /tmp/skp_repo
+    wget --no-check-certificate https://github.com/Space-Design/SketchUp_Importer/archive/refs/heads/master.zip -O /tmp/skp_importer.zip && \
+    unzip /tmp/skp_importer.zip -d /tmp && \
+    mv /tmp/SketchUp_Importer-master/SketchUp_Importer /root/.config/blender/2.83/scripts/addons/ && \
+    rm -rf /tmp/skp_importer.zip /tmp/SketchUp_Importer-master
 
 WORKDIR /app
 
