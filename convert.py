@@ -10,29 +10,32 @@ if current_dir not in sys.path:
 
 print("--- BLENDER ENGINE STARTING ---")
 
-# 2. MATCH NAMES EXACTLY
-# The folder is 'sketchup_importer', but bl_info name is 'SketchUp Importer'
-folder_name = "sketchup_importer"
-internal_name = "SketchUp Importer"
+# 2. FORCE LOAD & PATCH PREFERENCES
+addon_folder_name = "sketchup_importer"
 
 try:
     bpy.utils.refresh_script_paths()
-    # Enable using the folder name (module name)
-    addon_utils.enable(folder_name, default_set=True)
+    addon_utils.enable(addon_folder_name, default_set=True)
     
-    # --- CRITICAL PATCH FOR INTERNAL NAME ---
-    # We check both the folder name and the internal name in preferences
-    registered_addons = bpy.context.preferences.addons.keys()
-    print(f"Registered Addons in memory: {list(registered_addons)}")
+    # --- THE SURGERY ---
+    # The addon crashes because it wants context.preferences.addons['sketchup_importer']
+    # If it's not there, we manually inject it.
+    if addon_folder_name not in bpy.context.preferences.addons:
+        print(f"🔧 Injecting missing preference key: {addon_folder_name}")
+        # We use a built-in Blender operator to force-register the preference entry
+        bpy.ops.preferences.addon_enable(module=addon_folder_name)
+    
+    # If it's STILL not there (headless quirk), we map it to whatever IS there
+    if addon_folder_name not in bpy.context.preferences.addons:
+        for key in bpy.context.preferences.addons.keys():
+            if "sketchup" in key.lower():
+                print(f"🔗 Mapping {addon_folder_name} to existing key: {key}")
+                bpy.context.preferences.addons[addon_folder_name] = bpy.context.preferences.addons[key]
+                break
 
-    # If the internal name isn't found, we force it
-    if internal_name not in registered_addons and folder_name not in registered_addons:
-        print(f"🔧 Forcing registration for: {internal_name}")
-        bpy.ops.preferences.addon_enable(module=folder_name)
-    
-    print("✅ Addon engine successfully initialized.")
+    print("✅ Addon preference patch applied.")
 except Exception as e:
-    print(f"⚠️ Registration Info: {e}")
+    print(f"⚠️ Patch Info: {e}")
 
 # 3. VERIFY OPERATOR
 if not hasattr(bpy.ops.import_scene, 'skp'):
@@ -47,11 +50,11 @@ try:
     input_path = argv[0]
     output_path = argv[1]
 
-    # Factory reset for a clean scene
+    # Clear scene
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     print(f"🎬 IMPORTING SKP: {input_path}")
-    # Force the call to the verified operator
+    # We call the operator; it should now find the 'sketchup_importer' key it needs
     bpy.ops.import_scene.skp(filepath=input_path)
 
     print(f"📦 EXPORTING GLB: {output_path}")
