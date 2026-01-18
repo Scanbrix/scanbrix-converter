@@ -11,12 +11,13 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the SketchUp Importer Plugin for Blender
-# We download the latest stable release from GitHub
-RUN mkdir -p /root/.config/blender/3.4/scripts/addons && \
-    curl -L https://github.com/Space-Design/SketchUp_Importer/releases/download/v0.23.0/SketchUp_Importer.zip -o /tmp/skp_importer.zip && \
-    unzip /tmp/skp_importer.zip -d /root/.config/blender/3.4/scripts/addons && \
-    rm /tmp/skp_importer.zip
+# Install the SketchUp Importer Plugin for Blender 2.83
+# We download the master branch directly to ensure we get a valid zip file
+RUN mkdir -p /root/.config/blender/2.83/scripts/addons && \
+    curl -L https://github.com/Space-Design/SketchUp_Importer/archive/refs/heads/master.zip -o /tmp/skp_importer.zip && \
+    unzip /tmp/skp_importer.zip -d /tmp && \
+    mv /tmp/SketchUp_Importer-master/SketchUp_Importer /root/.config/blender/2.83/scripts/addons/ && \
+    rm -rf /tmp/skp_importer.zip /tmp/SketchUp_Importer-master
 
 WORKDIR /app
 
